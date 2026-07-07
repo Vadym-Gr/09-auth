@@ -28,7 +28,7 @@ export default async function Page({
   );
 }*/
 
-import { fetchNoteById } from '../../../lib/api';
+import { fetchNoteById } from '@/lib/api/serverApi';
 
 export default async function Page({
   params,

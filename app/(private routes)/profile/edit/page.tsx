@@ -1,10 +1,12 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+
 import { updateMe } from '@/lib/api/clientApi';
 import { useAuthStore } from '@/lib/store/authStore';
+
 import css from './EditProfile.module.css';
 
 export default function EditProfilePage() {
@@ -13,14 +15,12 @@ export default function EditProfilePage() {
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
 
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(user?.username ?? '');
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (user) {
-      setUsername(user.username);
-    }
-  }, [user]);
+  if (!user) {
+    return null;
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -28,7 +28,9 @@ export default function EditProfilePage() {
 
     try {
       const updatedUser = await updateMe({ username });
+
       setUser(updatedUser);
+
       router.push('/profile');
     } catch {
       setError('Failed to update profile');
@@ -38,8 +40,6 @@ export default function EditProfilePage() {
   const handleCancel = () => {
     router.push('/profile');
   };
-
-  if (!user) return null;
 
   return (
     <main className={css.mainContent}>
@@ -57,12 +57,13 @@ export default function EditProfilePage() {
         <form className={css.profileInfo} onSubmit={handleSubmit}>
           <div className={css.usernameWrapper}>
             <label htmlFor="username">Username:</label>
+
             <input
               id="username"
               type="text"
               className={css.input}
               value={username}
-              onChange={(event) => setUsername(event.target.value)}
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </div>
@@ -70,7 +71,10 @@ export default function EditProfilePage() {
           <p>Email: {user.email}</p>
 
           <div className={css.actions}>
-            <button type="submit" className={css.saveButton}>
+            <button
+              type="submit"
+              className={css.saveButton}
+            >
               Save
             </button>
 
