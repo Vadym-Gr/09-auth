@@ -39,6 +39,11 @@ export default function Modal({
     }
   };
 
+   // Захист від SSR
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
   return createPortal(
     <div
       className={css.backdrop}
