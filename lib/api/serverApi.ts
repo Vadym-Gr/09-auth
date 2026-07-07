@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import type { AxiosResponse } from 'axios';
 import { api } from './api';
 import type { Note } from '@/types/note';
 import type { User } from '@/types/user';
@@ -26,14 +27,14 @@ async function getCookieHeader(): Promise<string> {
 export async function fetchNotes({
   search = '',
   page = 1,
-  tag,
+  tag = '',
 }: FetchNotesParams): Promise<FetchNotesResponse> {
   const { data } = await api.get<FetchNotesResponse>('/notes', {
     params: {
       page,
       perPage: 12,
-      ...(search && { search }),
-      ...(tag && tag !== 'All' && { tag }),
+      search,
+      tag,
     },
     headers: {
       Cookie: await getCookieHeader(),
@@ -53,14 +54,14 @@ export async function fetchNoteById(id: string): Promise<Note> {
   return data;
 }
 
-export async function checkSession(): Promise<boolean> {
-  const { data } = await api.get<User | null>('/auth/session', {
+export async function checkSession(
+  cookieHeader?: string,
+): Promise<AxiosResponse<User | null>> {
+  return api.get<User | null>('/auth/session', {
     headers: {
-      Cookie: await getCookieHeader(),
+      Cookie: cookieHeader ?? (await getCookieHeader()),
     },
   });
-
-  return Boolean(data);
 }
 
 export async function getMe(): Promise<User> {

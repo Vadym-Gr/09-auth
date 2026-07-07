@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkSession } from './lib/api/serverApi';
 
 const privateRoutes = ['/profile', '/notes'];
 const publicRoutes = ['/sign-in', '/sign-up'];
+
+function applySetCookie(response: NextResponse, setCookie?: string | string[]) {
+  if (!setCookie) return;
+
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+
+  cookies.forEach((cookie) => {
+    response.headers.append('Set-Cookie', cookie);
+  });
+}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -12,18 +23,39 @@ export async function proxy(request: NextRequest) {
 
   const isPublicRoute = publicRoutes.some((route) => pathname === route);
 
-  const hasAuthCookie =
-    request.cookies.has('accessToken') || request.cookies.has('refreshToken');
+  const accessToken = request.cookies.get('accessToken');
+  const refreshToken = request.cookies.get('refreshToken');
 
-  if (isPrivateRoute && !hasAuthCookie) {
-    return NextResponse.redirect(new URL('/sign-in', request.url));
+  let isAuthenticated = Boolean(accessToken);
+  let setCookieHeader: string | string[] | undefined;
+
+  if (!accessToken && refreshToken) {
+    try {
+      const cookieHeader = request.cookies.toString();
+      const response = await checkSession(cookieHeader);
+
+      isAuthenticated = Boolean(response.data);
+      setCookieHeader = response.headers['set-cookie'];
+    } catch {
+      isAuthenticated = false;
+    }
   }
 
-  if (isPublicRoute && hasAuthCookie) {
-    return NextResponse.redirect(new URL('/profile', request.url));
+  if (isPrivateRoute && !isAuthenticated) {
+    const response = NextResponse.redirect(new URL('/sign-in', request.url));
+    applySetCookie(response, setCookieHeader);
+    return response;
   }
 
-  return NextResponse.next();
+  if (isPublicRoute && isAuthenticated) {
+    const response = NextResponse.redirect(new URL('/', request.url));
+    applySetCookie(response, setCookieHeader);
+    return response;
+  }
+
+  const response = NextResponse.next();
+  applySetCookie(response, setCookieHeader);
+  return response;
 }
 
 export const config = {

@@ -1,136 +1,75 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
+
 import { fetchNotes } from '@/lib/api/clientApi';
 import NoteList from '@/components/NoteList/NoteList';
 import SearchBox from '@/components/SearchBox/SearchBox';
 import Pagination from '@/components/Pagination/Pagination';
-import Modal from '@/components/Modal/Modal';
-import NoteForm from '@/components/NoteForm/NoteForm';
+import css from './Notes.module.css';
 
-
-interface Props {
-  tag?: string;
+interface NotesClientProps {
+  tag: string;
 }
 
-export default function NotesClient({ tag }: Props) {
-  const [page, setPage] = useState<number>(1);
-  const [search, setSearch] = useState<string>('');
-  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+export default function NotesClient({ tag }: NotesClientProps) {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  const normalizedTag = tag === 'All' ? '' : tag;
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       setDebouncedSearch(search);
       setPage(1);
-    }, 500);
+    }, 300);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [search]);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['notes', tag, page, debouncedSearch],
+    queryKey: ['notes', normalizedTag, page, debouncedSearch],
     queryFn: () =>
       fetchNotes({
         page,
         search: debouncedSearch,
-        tag: tag === 'all' ? undefined : tag,
+        tag: normalizedTag,
       }),
   });
 
   const notes = data?.notes ?? [];
-
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
-
-  if (isLoading) return <p>Loading...</p>;
-  if (isError) return <p>Error loading notes</p>;
+  const totalPages = data?.totalPages ?? 0;
+  const hasNotes = notes.length > 0;
 
   return (
-    <div>
-      <SearchBox onSearch={setSearch} />
+    <main className={css.mainContent}>
+      <div className={css.toolbar}>
+        <SearchBox value={search} onChange={setSearch} />
 
-      <button onClick={openModal}>Create note</button>
+        <Link href="/notes/action/create" className={css.button}>
+          Create note +
+        </Link>
+      </div>
 
-      {notes.length > 0 ? (
-        <NoteList notes={notes} />
-      ) : (
-        <p>No notes found</p>
+      {isLoading && <p>Loading...</p>}
+
+      {isError && <p>Something went wrong.</p>}
+
+      {hasNotes && <NoteList notes={notes} />}
+
+      {hasNotes && totalPages > 1 && (
+        <Pagination
+          pageCount={totalPages}
+          totalPages={totalPages}
+          currentPage={page}
+          onPageChange={setPage}
+        />
       )}
-
-      <Pagination
-        currentPage={page}
-        pageCount={data?.totalPages ?? 1} // ✅ FIX
-        totalPages={data?.totalPages ?? 1}
-        onPageChange={setPage}
-      />
-
-      {isModalOpen && (
-        <Modal onClose={closeModal}> 
-          <NoteForm onClose={closeModal} />
-        </Modal>
-      )}
-    </div>
+    </main>
   );
 }
-
-/*'use client';
-
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchNotes } from '@/lib/api';
-import NoteList from '@/components/NoteList/NoteList';
-import SearchBox from '@/components/SearchBox/SearchBox';
-import Pagination from '@/components/Pagination/Pagination';
-import Modal from '@/components/Modal/Modal';
-import NoteForm from '@/components/NoteForm/NoteForm';
-
-export default function NotesClient({ tag }: { tag?: string }) {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['notes', tag, page, search],
-    queryFn: () =>
-      fetchNotes({
-        page,
-        search,
-        tag: tag === 'all' ? undefined : tag,
-      }),
-  });
-
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
-
-  if (isLoading) return <p>Loading...</p>;
-  if (isError) return <p>Error</p>;
-
-  return (
-    <div>
-      <SearchBox onSearch={setSearch} />
-
-      <button onClick={openModal}>Create note</button>
-
-      {data?.notes.length ? (
-        <NoteList notes={data.notes} />
-      ) : (
-        <p>No notes found</p>
-      )}
-
-      <Pagination
-        pageCount={data?.totalPages || 1}
-        currentPage={page}
-        totalPages={data?.totalPages || 1}
-        onPageChange={setPage}
-      />
-
-      {isModalOpen && (
-        <Modal>
-          <NoteForm onClose={closeModal} />
-        </Modal>
-      )}
-    </div>
-  );
-}*/
